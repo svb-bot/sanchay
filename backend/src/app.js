@@ -6,6 +6,7 @@ import paymentCategoryRoutes from "./routes/paymentCategoryRoutes.js"
 import paymentModeRoutes from "./routes/paymentModeRoutes.js"
 import billCategoryRoutes from "./routes/billCategoryRoutes.js"
 import billPaymentModeRoutes from "./routes/billPaymentModeRoutes.js"
+import dashboardRoutes from "./routes/dashboardRoutes.js"
 
 const app = express()
 
@@ -18,6 +19,7 @@ app.use("/api/payment-category", paymentCategoryRoutes)
 app.use("/api/payment-mode", paymentModeRoutes)
 app.use("/api/bill-category", billCategoryRoutes)
 app.use("/api/bill-payment-mode", billPaymentModeRoutes)
+app.use("/api/dashboard", dashboardRoutes)
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok" })
 })

@@ -4,13 +4,115 @@ from utils import get_db_connection, check_db, generate_notes
 import pandas as pd
 
 
+def load_rent_bills(file_path):
+    """
+    Load rent bills from a CSV file and process them.
+    """
+    # Implement the logic to read the CSV file and process the bills
+    print(f"Loading rent bills from {file_path}")
+
+    df = pd.read_csv(file_path)
+    df = df[df["Narration"].str.lower().str.contains("minati dash", na=False)]
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                required_columns = [
+                    "Date",
+                    "Narration",
+                    "Chq./Ref.No.",
+                    "Withdrawal Amt.",
+                    "Deposit Amt.",
+                ]
+                missing_columns = [
+                    col for col in required_columns if col not in df.columns
+                ]
+                if missing_columns:
+                    raise ValueError(
+                        f"Missing required columns in CSV: {', '.join(missing_columns)}"
+                    )
+
+                # Fetch the bill_payment_mode_id for 'UPI' from the database
+                bill_payment_mode_df = pd.read_sql_query(
+                    "select mode_id bill_payment_mode_id, mode_name bill_payment_mode from dim_bill_payment_mode where mode_name in ('UPI')",
+                    con=conn,
+                )
+
+                # Fetch the payment_category_id for 'Rent' from the database
+                bill_category_df = pd.read_sql_query(
+                    "select category_id bill_category_id, category_name bill_category from dim_bill_category where category_name in ('Rent')",
+                    con=conn,
+                )
+
+                df["bill_payment_mode"] = df["Narration"].str.split("-").str[0]
+                df["bill_category"] = "Rent"
+                df = df.merge(
+                    bill_payment_mode_df,
+                    how="left",
+                    left_on="bill_payment_mode",
+                    right_on="bill_payment_mode",
+                )
+                df = df.merge(
+                    bill_category_df,
+                    how="left",
+                    left_on="bill_category",
+                    right_on="bill_category",
+                )
+
+                df["bill_issuer_name"] = df["Narration"].str.split("-").str[1]
+                df["Date"] = pd.to_datetime(df["Date"], format="mixed")
+                df.rename(
+                    columns={
+                        "Date": "bill_date",
+                        "Withdrawal Amt.": "bill_amount",
+                        "Chq./Ref.No.": "bill_reference",
+                    },
+                    inplace=True,
+                )
+                df["bill_notes"] = None
+                df = df[
+                    [
+                        "bill_date",
+                        "bill_category_id",
+                        "bill_issuer_name",
+                        "bill_reference",
+                        "bill_amount",
+                        "bill_payment_mode_id",
+                        "bill_notes",
+                    ]
+                ]
+                df.sort_values("bill_date", inplace=True)
+                df.reset_index(drop=True, inplace=True)
+                print(df.head(100))
+
+                # Process the data and insert into the database
+                cursor.executemany(
+                    """
+                    INSERT INTO fact_spending (
+                        bill_date,
+                        bill_category_id,
+                        bill_issuer_name,
+                        bill_reference,
+                        bill_amount,
+                        bill_payment_mode_id,
+                        bill_notes
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    df.values.tolist(),
+                )
+
+                conn.commit()
+    except Exception as e:
+        print(f"Error loading rent bills: {e}")
+        return
+
+
 def load_cesc_bills(file_path):
     """
     Load CESC bills from a CSV file and process them.
     """
     # Implement the logic to read the CSV file and process the bills
     print(f"Loading CESC bills from {file_path}")
-    # Example: Read the CSV and print the contents (replace with actual processing logic)
 
     df = pd.read_csv(file_path)
     # bill_date,bill_category_id,bill_issuer_name,bill_amount,bill_reference,bill_payment_mode_id,bill_notes
@@ -34,18 +136,33 @@ def load_cesc_bills(file_path):
                         f"Missing required columns in CSV: {', '.join(missing_columns)}"
                     )
 
-                # Fetch the bill_payment_mode_id and bill_category_id from the database
-                cursor.execute(
-                    "select mode_id from dim_bill_payment_mode where mode_name = 'SI'"
+                # Fetch the bill_payment_mode_id for 'SI' from the database
+                bill_payment_mode_df = pd.read_sql_query(
+                    "select mode_id bill_payment_mode_id, mode_name bill_payment_mode from dim_bill_payment_mode where mode_name = 'SI'",
+                    con=conn,
                 )
-                bill_payment_mode_id = int(cursor.fetchone()[0] or 1)
+
                 # Fetch the bill_category_id for 'Electricity' from the database
-                cursor.execute(
-                    "select category_id from dim_bill_category where category_name = 'Electricity'"
+                bill_category_df = pd.read_sql_query(
+                    "select category_id bill_category_id, category_name bill_category from dim_bill_category where category_name = 'Electricity'",
+                    con=conn,
                 )
-                bill_category_id = int(cursor.fetchone()[0] or 1)
-                df["bill_payment_mode_id"] = bill_payment_mode_id
-                df["bill_category_id"] = bill_category_id
+
+                df["bill_payment_mode"] = "SI"
+                df["bill_category"] = "Electricity"
+                df = df.merge(
+                    bill_payment_mode_df,
+                    how="left",
+                    left_on="bill_payment_mode",
+                    right_on="bill_payment_mode",
+                )
+                df = df.merge(
+                    bill_category_df,
+                    how="left",
+                    left_on="bill_category",
+                    right_on="bill_category",
+                )
+
                 df["date"] = pd.to_datetime(df["date"], format="%d-%b-%Y")
                 df.rename(
                     columns={
@@ -66,7 +183,18 @@ def load_cesc_bills(file_path):
                     ),
                     axis=1,
                 )
-                df.drop(columns=["id", "consumer_id"], inplace=True)
+                df = df[
+                    [
+                        "bill_date",
+                        "bill_category_id",
+                        "bill_issuer_name",
+                        "bill_amount",
+                        "bill_payment_mode_id",
+                        "bill_reference",
+                        "bill_notes",
+                    ]
+                ]
+                df.reset_index(drop=True, inplace=True)
                 print(df.head())
 
                 # Process the data and insert into the database
@@ -82,17 +210,7 @@ def load_cesc_bills(file_path):
                         bill_notes
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
-                    df[
-                        [
-                            "bill_date",
-                            "bill_category_id",
-                            "bill_issuer_name",
-                            "bill_amount",
-                            "bill_payment_mode_id",
-                            "bill_reference",
-                            "bill_notes",
-                        ]
-                    ].values.tolist(),
+                    df.values.tolist(),
                 )
 
                 conn.commit()
@@ -106,7 +224,7 @@ if __name__ == "__main__":
     load_dotenv()  # Load environment variables from .env file
     check_db()
 
-    possible_types = ["cesc"]
+    possible_types = ["cesc", "rent"]
     parser = ArgumentParser()
     parser.add_argument(
         "--path",
@@ -130,3 +248,5 @@ if __name__ == "__main__":
 
     if bill_type == "cesc":
         load_cesc_bills(file_path)
+    elif bill_type == "rent":
+        load_rent_bills(file_path)

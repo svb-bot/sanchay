@@ -1,6 +1,7 @@
 from mysql.connector import connect
 import os
 import json
+import pandas as pd
 
 
 def get_db_connection():
@@ -31,12 +32,30 @@ def check_db():
         raise
 
 
+def is_integer_string(x):
+    """
+    Check if the given string represents an integer.
+    """
+    s = str(x).strip()
+    if s.startswith(("+", "-")):
+        s = s[1:]
+    return s.isdigit()
+
+
 def generate_notes(row, columns={}):
     """
     Generate notes for a bill based on the row data.
     """
     notes = {}
-    for key, value in columns.items():
-        if key in row and row[key] is not None:
-            notes[value] = row[key]
+    for column, ren_column in columns.items():
+        if column in row and row[column] is not None:
+            value = row.get(column, None)
+            if (
+                value != ""
+                and pd.notna(value)
+                and pd.notnull(value)
+                # and isinstance(value, pd.Timestamp)
+                and not (is_integer_string(value) and int(value) == 0)
+            ):
+                notes[ren_column] = value
     return json.dumps(notes) if notes else None

@@ -3,6 +3,7 @@ import { AppShell, Container, Tabs, Title, Button } from "@mantine/core"
 import IncomeForm from "./forms/IncomeForm"
 import SpendingForm from "./forms/SpendingForm"
 import Settings from "./pages/Settings"
+import Dashboard from "./pages/Dashboard"
 import { useState } from "react"
 import { IconSun, IconMoon } from "@tabler/icons-react"
 
@@ -38,12 +39,17 @@ function App() {
 
             <AppShell.Main>
                 <Container size="lg">
-                    <Tabs defaultValue="income">
+                    <Tabs defaultValue="dashboard">
                         <Tabs.List>
+                            <Tabs.Tab value="dashboard">Dashboard</Tabs.Tab>
                             <Tabs.Tab value="income">Income</Tabs.Tab>
                             <Tabs.Tab value="spending">Spending</Tabs.Tab>
                             <Tabs.Tab value="settings">Settings</Tabs.Tab>
                         </Tabs.List>
+
+                        <Tabs.Panel value="dashboard" pt="md">
+                            <Dashboard />
+                        </Tabs.Panel>
 
                         <Tabs.Panel value="income" pt="md">
                             <IncomeForm />
