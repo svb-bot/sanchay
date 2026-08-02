@@ -1,5 +1,4 @@
 import { Card } from "@mantine/core"
-import { notifications } from "@mantine/notifications"
 
 import DynamicForm from "../components/DynamicForm"
 import incomeSchema from "../schemas/incomeSchema"

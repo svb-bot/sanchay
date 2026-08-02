@@ -10,6 +10,6 @@ const paymentModeSchema = {
             required: true
         }
     ]
-};
+}
 
-export default paymentModeSchema;
+export default paymentModeSchema

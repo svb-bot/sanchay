@@ -10,6 +10,6 @@ const paymentCategorySchema = {
             required: true
         }
     ]
-};
+}
 
-export default paymentCategorySchema;
+export default paymentCategorySchema

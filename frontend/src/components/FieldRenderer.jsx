@@ -1,25 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
 import {
     TextInput,
     NumberInput,
     Textarea,
     Select
-} from "@mantine/core";
+} from "@mantine/core"
 
-import { DateInput } from "@mantine/dates";
+import { DateInput } from "@mantine/dates"
 
-import api from "../api/api";
+import api from "../api/api"
 
 
 function FieldRenderer({ field, value, onChange }) {
 
-    const [options, setOptions] = useState([]);
+    const [options, setOptions] = useState([])
 
     useEffect(() => {
 
         if (field.dataSource) {
-            loadOptions();
+            loadOptions()
 
         } else if (field.data) {
             setOptions(
@@ -27,122 +27,122 @@ function FieldRenderer({ field, value, onChange }) {
                     value: item,
                     label: item
                 }))
-            );
+            )
         }
 
-    }, [field]);
+    }, [field])
 
 
     const loadOptions = async () => {
         try {
 
-            const response = await api.get(field.dataSource);
+            const response = await api.get(field.dataSource)
 
             setOptions(
                 response.data.data.map(item => ({
                     value: String(item.id),
                     label: item.name
                 }))
-            );
+            )
 
         } catch (error) {
             console.error(
                 `Failed loading ${field.name}`,
                 error
-            );
+            )
         }
-    };
+    }
 
 
     switch (field.type) {
 
-        case "text":
-            return (
-                <TextInput
-                    label={field.label}
-                    required={field.required}
-                    value={value || ""}
-                    onChange={(e) =>
-                        onChange(
-                            field.name,
-                            e.currentTarget.value
-                        )
-                    }
-                />
-            );
+    case "text":
+        return (
+            <TextInput
+                label={field.label}
+                required={field.required}
+                value={value || ""}
+                onChange={(e) =>
+                    onChange(
+                        field.name,
+                        e.currentTarget.value
+                    )
+                }
+            />
+        )
 
 
-        case "currency":
-        case "number":
-            return (
-                <NumberInput
-                    label={field.label}
-                    required={field.required}
-                    value={value}
-                    min={field.min}
-                    decimalScale={2}
-                    thousandSeparator=","
-                    onChange={(val) =>
-                        onChange(
-                            field.name,
-                            val
-                        )
-                    }
-                />
-            );
+    case "currency":
+    case "number":
+        return (
+            <NumberInput
+                label={field.label}
+                required={field.required}
+                value={value}
+                min={field.min}
+                decimalScale={2}
+                thousandSeparator=","
+                onChange={(val) =>
+                    onChange(
+                        field.name,
+                        val
+                    )
+                }
+            />
+        )
 
 
-        case "textarea":
-            return (
-                <Textarea
-                    label={field.label}
-                    value={value || ""}
-                    onChange={(e) =>
-                        onChange(
-                            field.name,
-                            e.currentTarget.value
-                        )
-                    }
-                />
-            );
+    case "textarea":
+        return (
+            <Textarea
+                label={field.label}
+                value={value || ""}
+                onChange={(e) =>
+                    onChange(
+                        field.name,
+                        e.currentTarget.value
+                    )
+                }
+            />
+        )
 
 
-        case "date":
-            return (
-                <DateInput
-                    label={field.label}
-                    required={field.required}
-                    value={value}
-                    onChange={(val) =>
-                        onChange(
-                            field.name,
-                            val
-                        )
-                    }
-                />
-            );
+    case "date":
+        return (
+            <DateInput
+                label={field.label}
+                required={field.required}
+                value={value}
+                onChange={(val) =>
+                    onChange(
+                        field.name,
+                        val
+                    )
+                }
+            />
+        )
 
 
-        case "select":
-            return (
-                <Select
-                    label={field.label}
-                    required={field.required}
-                    data={options}
-                    value={value}
-                    onChange={(val) =>
-                        onChange(
-                            field.name,
-                            val
-                        )
-                    }
-                />
-            );
+    case "select":
+        return (
+            <Select
+                label={field.label}
+                required={field.required}
+                data={options}
+                value={value}
+                onChange={(val) =>
+                    onChange(
+                        field.name,
+                        val
+                    )
+                }
+            />
+        )
 
 
-        default:
-            return null;
+    default:
+        return null
     }
 }
 
-export default FieldRenderer;
+export default FieldRenderer

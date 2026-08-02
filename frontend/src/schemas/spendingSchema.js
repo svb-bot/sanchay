@@ -40,6 +40,6 @@ const spendingSchema = [
         label: "Notes",
         type: "textarea"
     }
-];
+]
 
-export default spendingSchema;
+export default spendingSchema

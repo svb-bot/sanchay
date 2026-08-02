@@ -11,6 +11,6 @@ const billCategorySchema = {
             required: true
         }
     ]
-};
+}
 
-export default billCategorySchema;
+export default billCategorySchema

@@ -1,5 +1,4 @@
 import { Card, Title } from "@mantine/core"
-import { notifications } from "@mantine/notifications"
 
 import DynamicForm from "../DynamicForm"
 import api from "../../api/api"
@@ -14,7 +13,7 @@ function DimensionForm({ schema, onSaved }) {
             onsuccess(response.data.message || "Data saved successfully.")
             onSaved?.()
         } catch (error) {
-            pnerror(error || "An error occurred while saving data.")
+            onerror(error || "An error occurred while saving data.")
         }
     }
 

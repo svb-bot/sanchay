@@ -11,6 +11,6 @@ const billPaymentModeSchema = {
             required: true
         }
     ]
-};
+}
 
-export default billPaymentModeSchema;
+export default billPaymentModeSchema

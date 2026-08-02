@@ -19,7 +19,7 @@ export async function createIncome(data) {
         data.payment_payee_name,
         data.payment_amt,
         data.payment_mode_id,
-        data.payment_notes
+        data?.payment_notes ?? null,
     ]);
 
     return result;

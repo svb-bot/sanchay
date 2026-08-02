@@ -35,6 +35,6 @@ const incomeSchema = [
         label: "Notes",
         type: "textarea"
     }
-];
+]
 
-export default incomeSchema;
+export default incomeSchema
