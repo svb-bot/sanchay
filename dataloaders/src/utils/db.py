@@ -52,6 +52,7 @@ def generate_notes(row, columns={}):
             value = row.get(column, None)
             if (
                 value != ""
+                and value != "-"
                 and pd.notna(value)
                 and pd.notnull(value)
                 # and isinstance(value, pd.Timestamp)
@@ -59,3 +60,101 @@ def generate_notes(row, columns={}):
             ):
                 notes[ren_column] = value
     return json.dumps(notes) if notes else None
+
+
+def derive_transaction_columns(df: pd.DataFrame):
+    date_column_name = list(
+        filter(
+            lambda x: "date" in x.lower().replace(".", " ").strip(),
+            df.columns.to_list(),
+        )
+    )[0]
+    ref_column_name = list(
+        filter(
+            lambda x: "ref " in x.lower().replace(".", " ").strip(),
+            df.columns.to_list(),
+        )
+    )[0]
+    deposit_column_name = list(
+        filter(
+            lambda x: "deposit" in x.lower().replace(".", " ").strip(),
+            df.columns.to_list(),
+        )
+    )[0]
+    details_column_name = list(
+        filter(
+            lambda x: "details" in x.lower().replace(".", " ").strip()
+            or "narration" in x.lower().replace(".", " ").strip(),
+            df.columns.to_list(),
+        )
+    )[0]
+    withdrawal_column_name = list(
+        filter(
+            lambda x: "withdrawal" in x.lower().replace(".", " ").strip(),
+            df.columns.to_list(),
+        )
+    )[0]
+
+    return {
+        "date_column_name": date_column_name,
+        "ref_column_name": ref_column_name,
+        "deposit_column_name": deposit_column_name,
+        "details_column_name": details_column_name,
+        "withdrawal_column_name": withdrawal_column_name,
+    }
+
+
+def load_into_stg(table_name: str, df: pd.DataFrame):
+    """
+    Load a DataFrame into a staging table in the database.
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(f"TRUNCATE TABLE {table_name}")
+
+            insert_qry = (
+                f"INSERT INTO {table_name} ({','.join(df.columns)})"
+                + f"VALUES({','.join(['%s']*len(df.columns))});"
+            )
+            cursor.executemany(
+                insert_qry,
+                (df.values.tolist()),
+            )
+            print(f"{cursor.rowcount} records inserted into {table_name}")
+
+        conn.commit()
+
+
+def load_into_main(stg_table_name: str, main_table_name: str, exclusions: list = []):
+    """
+    Load data from a staging table into a main table in the database.
+    """
+    hash_exclusions = ["created_at", "updated_at"]
+    hash_exclusions.extend(exclusions)
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            # get columns
+            cursor.execute(
+                f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{main_table_name}'"
+            )
+            columns = cursor.fetchall()
+            columns = [
+                str(col[0]) for col in columns if str(col[0]) not in hash_exclusions
+            ]
+            hash_columns_src = [f"COALESCE(src.{col}, '|')" for col in columns]
+            hash_columns_tgt = [f"COALESCE(tgt.{col}, '|')" for col in columns]
+
+            print(columns)
+
+            final_insert_query = f"""
+            INSERT INTO {main_table_name}({','.join(columns)}, created_at, updated_at)
+            SELECT {','.join(columns)}, now(), now() FROM {stg_table_name} tgt 
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM {main_table_name} src
+                where sha1(concat({','.join(hash_columns_src)})) = sha1(concat({','.join(hash_columns_tgt)}))
+            )
+            """
+            cursor.execute(final_insert_query)
+            print(f"{cursor.rowcount} records inserted into {main_table_name}")
+            conn.commit()

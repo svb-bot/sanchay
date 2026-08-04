@@ -76,3 +76,30 @@ CREATE TABLE fact_spending (
         FOREIGN KEY (bill_payment_mode_id)
         REFERENCES dim_bill_payment_mode(mode_id)
 );
+    
+CREATE TABLE fact_income_stg (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    payment_date DATE NOT NULL,
+    payment_category_id INT NOT NULL,
+    payment_payee_name VARCHAR(100),
+    payment_amt DECIMAL(12,2) NOT NULL,
+    payment_mode_id INT NOT NULL,
+    payment_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE fact_spending_stg (
+    bill_id INT AUTO_INCREMENT PRIMARY KEY,
+    bill_date DATE NOT NULL,
+    bill_category_id INT NOT NULL,
+    bill_issuer_name VARCHAR(150),
+    bill_amount DECIMAL(12,2) NOT NULL,
+    bill_reference VARCHAR(100),
+    bill_payment_mode_id INT NOT NULL,
+    bill_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP
+);

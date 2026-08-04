@@ -1,5 +1,9 @@
 # Sanchay
 
+<div align="center">
+<img src="./frontend/public/logo_title.png" width="400" alt="Sanchay" />
+</div>
+
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![Mantine](https://img.shields.io/badge/Mantine-UI-339AF0)
 ![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js)

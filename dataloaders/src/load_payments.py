@@ -1,9 +1,26 @@
 from argparse import ArgumentParser
 from dotenv import load_dotenv
-from utils import get_db_connection, check_db, generate_notes
+from utils import (
+    get_db_connection,
+    check_db,
+    generate_notes,
+    get_dataframe,
+    load_into_stg,
+    derive_transaction_columns,
+    load_into_main,
+)
 import pandas as pd
-
-banking_map = {"HDFC": "HDFC Bank Limited"}
+import os
+from config import (
+    BANKING_MAP,
+    DATE_FORMAT,
+    ECS_MODE,
+    UPI_MODE,
+    ACH_MODE,
+    NEFT_MODE,
+    SAVINGS_CATEGORY,
+    FD_CATEGORY,
+)
 
 
 def load_interest_payments(file_path, bank_name="HDFC"):
@@ -11,41 +28,36 @@ def load_interest_payments(file_path, bank_name="HDFC"):
     Load interest payments from a CSV file and process them.
     """
     print(f"Loading interest payments from {file_path}")
-    df = pd.read_csv(file_path)
-    df = df[df["Narration"].str.lower().str.contains("interest", na=False)]
 
     try:
+        df = get_dataframe(file_path)
+        txn_cols = derive_transaction_columns(df)
+        print(txn_cols)
+
+        df = df[
+            df[txn_cols.get("details_column_name", "Narration")]
+            .str.lower()
+            .str.contains("interest", na=False)
+        ]
+
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                required_columns = [
-                    "Date",
-                    "Narration",
-                    "Chq./Ref.No.",
-                    "Withdrawal Amt.",
-                    "Deposit Amt.",
-                ]
-                missing_columns = [
-                    col for col in required_columns if col not in df.columns
-                ]
-                if missing_columns:
-                    raise ValueError(
-                        f"Missing required columns in CSV: {', '.join(missing_columns)}"
-                    )
-
                 # Fetch the payment_mode_id for 'ECS' from the database
                 payment_mode_df = pd.read_sql_query(
-                    "select mode_id payment_mode_id, mode_name payment_mode from dim_payment_mode where mode_name = 'ECS'",
+                    f"select mode_id payment_mode_id, mode_name payment_mode from dim_payment_mode where mode_name = '{ECS_MODE}'",
                     con=conn,
                 )
 
                 # Fetch the payment_category_id for Savings / FD from the database
                 payment_category_df = pd.read_sql_query(
-                    "select category_id payment_category_id, category_name payment_category from dim_payment_category where category_name in ('Interest/Savings', 'Interest/Deposit/Term')",
+                    f"select category_id payment_category_id, category_name payment_category from dim_payment_category where category_name in ('{SAVINGS_CATEGORY}', '{FD_CATEGORY}')",
                     con=conn,
                 )
 
-                df["payment_mode"] = "ECS"
-                df["payment_category"] = df["Narration"].apply(
+                df["payment_mode"] = ECS_MODE
+                df["payment_category"] = df[
+                    txn_cols.get("details_column_name", "Narration")
+                ].apply(
                     lambda x: (
                         "Interest/Deposit/Term"
                         if "quarterly" in str(x).lower()
@@ -65,15 +77,19 @@ def load_interest_payments(file_path, bank_name="HDFC"):
                     right_on="payment_category",
                 )
 
-                df["payment_payee_name"] = banking_map.get(bank_name, bank_name)
-                df["Date"] = pd.to_datetime(df["Date"], format="mixed")
-                df["acct_no"] = df["Narration"].str.extract(
-                    r"QUARTERLY INTEREST CREDIT\s+(\d+)", expand=False
+                df["payment_payee_name"] = BANKING_MAP.get(bank_name, bank_name)
+                df[txn_cols.get("date_column_name", "Date")] = pd.to_datetime(
+                    df[txn_cols.get("date_column_name", "Date")], format=DATE_FORMAT
                 )
+                df["acct_no"] = df[
+                    txn_cols.get("details_column_name", "Narration")
+                ].str.extract(r"QUARTERLY INTEREST CREDIT\s+(\d+)", expand=False)
                 df.rename(
                     columns={
-                        "Date": "payment_date",
-                        "Deposit Amt.": "payment_amt",
+                        txn_cols.get("date_column_name", "Date"): "payment_date",
+                        txn_cols.get(
+                            "deposit_column_name", "Deposit Amt."
+                        ): "payment_amt",
                     },
                     inplace=True,
                 )
@@ -81,13 +97,13 @@ def load_interest_payments(file_path, bank_name="HDFC"):
                     lambda row: generate_notes(
                         row,
                         {
-                            "Chq./Ref.No.": "ref",
+                            txn_cols.get("ref_column_name", "Cheque/Ref No"): "ref",
                             "acct_no": "acct_no",
                         },
                     ),
                     axis=1,
                 )
-                df.sort_values(by=["payment_category_id", "payment_date"], inplace=True)
+                # df.sort_values(by=["payment_category_id", "payment_date"], inplace=True)
                 df = df[
                     [
                         "payment_date",
@@ -101,16 +117,10 @@ def load_interest_payments(file_path, bank_name="HDFC"):
                 df.reset_index(drop=True, inplace=True)
                 print(df.head())
 
-                cursor.executemany(
-                    """
-                    INSERT INTO fact_income (
-                        payment_date,payment_category_id,payment_payee_name,payment_amt,payment_mode_id,payment_notes
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                    (df.values.tolist()),
-                )
+        load_into_stg("fact_income_stg", df)
+        load_into_main("fact_income_stg", "fact_income", ["payment_id"])
 
-                conn.commit()
+        print("Interest payments loaded successfully!")
 
     except Exception as e:
         print(f"Error loading interest payments: {e}")
@@ -122,30 +132,26 @@ def load_salary_payments(file_path):
     Load salary payments from a CSV file and process them.
     """
     print(f"Loading salary payments from {file_path}")
-    df = pd.read_csv(file_path)
-    df = df[df["Narration"].str.lower().str.contains("salary", na=False)]
 
     try:
+        df = get_dataframe(file_path)
+        txn_cols = derive_transaction_columns(df)
+        print(txn_cols)
+
+        df = df[
+            df[txn_cols.get("details_column_name", "Narration")]
+            .str.lower()
+            .str.contains("salary", na=False)
+        ]
+
         with get_db_connection() as conn:
             with conn.cursor() as cursor:
-                required_columns = [
-                    "Date",
-                    "Narration",
-                    "Chq./Ref.No.",
-                    "Withdrawal Amt.",
-                    "Deposit Amt.",
-                ]
-                missing_columns = [
-                    col for col in required_columns if col not in df.columns
-                ]
-                if missing_columns:
-                    raise ValueError(
-                        f"Missing required columns in CSV: {', '.join(missing_columns)}"
-                    )
 
                 # Fetch the payment_mode_id for 'ACH'/'NEFT' from the database
                 payment_mode_df = pd.read_sql_query(
-                    "select mode_id payment_mode_id, mode_name payment_mode from dim_payment_mode where mode_name in ('ACH', 'NEFT')",
+                    "select mode_id payment_mode_id, mode_name payment_mode from dim_payment_mode where mode_name in ('{ACH_MODE}', '{NEFT_MODE}')".format(
+                        ACH_MODE=ACH_MODE, NEFT_MODE=NEFT_MODE
+                    ),
                     con=conn,
                 )
 
@@ -155,7 +161,11 @@ def load_salary_payments(file_path):
                     con=conn,
                 )
 
-                df["payment_mode"] = df["Narration"].str.split().str[0]
+                df["payment_mode"] = (
+                    df[txn_cols.get("details_column_name", "Narration")]
+                    .str.split()
+                    .str[0]
+                )
                 df["payment_category"] = "Salary"
                 df = df.merge(
                     payment_mode_df,
@@ -170,19 +180,27 @@ def load_salary_payments(file_path):
                     right_on="payment_category",
                 )
 
-                df["payment_payee_name"] = df["Narration"].str.split("-").str[2]
-                df["Date"] = pd.to_datetime(df["Date"], format="mixed")
+                df["payment_payee_name"] = (
+                    df[txn_cols.get("details_column_name", "Narration")]
+                    .str.split("-")
+                    .str[2]
+                )
+                df[txn_cols.get("date_column_name", "Date")] = pd.to_datetime(
+                    df[txn_cols.get("date_column_name", "Date")], format=DATE_FORMAT
+                )
                 df.rename(
                     columns={
-                        "Date": "payment_date",
-                        "Deposit Amt.": "payment_amt",
+                        txn_cols.get("date_column_name", "Date"): "payment_date",
+                        txn_cols.get(
+                            "deposit_column_name", "Deposit Amt."
+                        ): "payment_amt",
                     },
                     inplace=True,
                 )
                 df["payment_notes"] = df.apply(
                     lambda row: generate_notes(
                         row,
-                        {"Chq./Ref.No.": "ref"},
+                        {txn_cols.get("ref_column_name", "Cheque/Ref No"): "ref"},
                     ),
                     axis=1,
                 )
@@ -197,19 +215,12 @@ def load_salary_payments(file_path):
                     ]
                 ]
                 df.reset_index(drop=True, inplace=True)
-                # print(df.tail())
+                print(df.head())
 
-                # Process the data and insert into the database
-                cursor.executemany(
-                    """
-                    INSERT INTO fact_income (
-                        payment_date,payment_category_id,payment_payee_name,payment_amt,payment_mode_id,payment_notes
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
-                """,
-                    (df.values.tolist()),
-                )
+        load_into_stg("fact_income_stg", df)
+        load_into_main("fact_income_stg", "fact_income", ["payment_id"])
 
-                conn.commit()
+        print("Salary payments loaded successfully!")
 
     except Exception as e:
         print(f"Error loading salary payments: {e}")
