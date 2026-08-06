@@ -68,32 +68,78 @@ def derive_transaction_columns(df: pd.DataFrame):
             lambda x: "date" in x.lower().replace(".", " ").strip(),
             df.columns.to_list(),
         )
-    )[0]
+    )
+    if len(date_column_name) > 0:
+        date_column_name = date_column_name[0]
+    else:
+        date_column_name = None
+
     ref_column_name = list(
         filter(
             lambda x: "ref " in x.lower().replace(".", " ").strip(),
             df.columns.to_list(),
         )
-    )[0]
+    )
+    if len(ref_column_name) > 0:
+        ref_column_name = ref_column_name[0]
+    else:
+        ref_column_name = None
+
     deposit_column_name = list(
         filter(
             lambda x: "deposit" in x.lower().replace(".", " ").strip(),
             df.columns.to_list(),
         )
-    )[0]
+    )
+    if len(deposit_column_name) > 0:
+        deposit_column_name = deposit_column_name[0]
+    else:
+        deposit_column_name = None
+
     details_column_name = list(
         filter(
             lambda x: "details" in x.lower().replace(".", " ").strip()
             or "narration" in x.lower().replace(".", " ").strip(),
             df.columns.to_list(),
         )
-    )[0]
+    )
+    if len(details_column_name) > 0:
+        details_column_name = details_column_name[0]
+    else:
+        details_column_name = None
+
     withdrawal_column_name = list(
         filter(
             lambda x: "withdrawal" in x.lower().replace(".", " ").strip(),
             df.columns.to_list(),
         )
-    )[0]
+    )
+    if len(withdrawal_column_name) > 0:
+        withdrawal_column_name = withdrawal_column_name[0]
+    else:
+        withdrawal_column_name = None
+
+    issuer_column_name = list(
+        filter(
+            lambda x: "issuer" in x.lower().replace(".", " ").strip(),
+            df.columns.to_list(),
+        )
+    )
+    if len(issuer_column_name) > 0:
+        issuer_column_name = issuer_column_name[0]
+    else:
+        issuer_column_name = None
+
+    consumer_column_name = list(
+        filter(
+            lambda x: "consumer" in x.lower().replace(".", " ").strip(),
+            df.columns.to_list(),
+        )
+    )
+    if len(consumer_column_name) > 0:
+        consumer_column_name = consumer_column_name[0]
+    else:
+        consumer_column_name = None
 
     return {
         "date_column_name": date_column_name,
@@ -101,6 +147,8 @@ def derive_transaction_columns(df: pd.DataFrame):
         "deposit_column_name": deposit_column_name,
         "details_column_name": details_column_name,
         "withdrawal_column_name": withdrawal_column_name,
+        "issuer_column_name": issuer_column_name,
+        "consumer_column_name": consumer_column_name,
     }
 
 

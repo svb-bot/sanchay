@@ -37,51 +37,53 @@ export async function getAllIncome() {
 
 export async function getIncomeSummary() {
     const [rows] = await db.execute(`
-    WITH main AS (
-        SELECT dpc.category_name category
-            ,sum(fi.payment_amt) AS total_amount
+    WITH RECURSIVE main AS (
+        SELECT 
+            dpc.category_name AS category,
+            SUM(fi.payment_amt) AS total_amount
         FROM fact_income fi
-        INNER JOIN dim_payment_category dpc ON fi.payment_category_id = dpc.category_id
-        GROUP BY 1
+        JOIN dim_payment_category dpc 
+        ON fi.payment_category_id = dpc.category_id
+        GROUP BY dpc.category_name
     ),
-    split_1 AS (
-        SELECT CONCAT (SUBSTRING_INDEX(category, '/', 1)) category
-            ,total_amount
+    split AS (
+        SELECT 
+            category,
+            total_amount,
+            1 AS level
         FROM main
-        WHERE category LIKE '%/%'
-    ),
-    split_2 AS (
-        SELECT CONCAT (
-                SUBSTRING_INDEX(category, '/', 1)
-                ,'/'
-                ,SUBSTRING_INDEX(SUBSTRING_INDEX(category, '/', 2), '/', - 1)
-                ) category
-            ,total_amount
-        FROM main
-        WHERE category LIKE '%/%/%'
-    )
-    SELECT *
-    FROM (
-        SELECT category
-            ,total_amount
-        FROM main
-        
-        UNION ALL
-        
-        SELECT category
-            ,sum(total_amount) total_amount
-        FROM split_1
-        GROUP BY 1
-        
-        UNION ALL
-        
-        SELECT category
-            ,sum(total_amount) total_amount
-        FROM split_2
-        GROUP BY 1
-    ) a
-    ORDER BY 1
 
+        UNION ALL
+
+        SELECT
+            s.category,
+            s.total_amount,
+            s.level + 1
+        FROM split s
+        WHERE s.level < (LENGTH(s.category) - LENGTH(REPLACE(s.category,'/',''))) + 1
+    ),
+    prefixes AS (
+        SELECT
+            SUBSTRING_INDEX(m.category, '/', s.level) AS category,
+            s.total_amount
+        FROM split s
+        JOIN main m
+        ON m.category = s.category
+    )
+    SELECT
+        TRIM(BOTH '/' FROM category) AS category,
+        SUM(total_amount) AS total_amount
+    FROM prefixes
+    GROUP BY 1
+
+    UNION ALL
+
+    SELECT
+        '' AS category,
+        SUM(total_amount) AS total_amount
+    FROM main
+
+    ORDER BY category
     `);
     return rows;
 }

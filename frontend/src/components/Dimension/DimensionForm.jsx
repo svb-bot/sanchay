@@ -10,7 +10,7 @@ function DimensionForm({ schema, onSaved }) {
             if (!response.data.success) {
                 throw new Error(response.data.message || "Failed to save data.")
             }
-            onsuccess(response.data.message || "Data saved successfully.")
+            onsuccess(response.data.message || "Record saved successfully.")
             onSaved?.()
         } catch (error) {
             onerror(error || "An error occurred while saving data.")

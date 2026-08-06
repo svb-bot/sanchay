@@ -1,48 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 
-import {
-    Card,
-    Table,
-    Title,
-    Loader,
-    Center
-} from "@mantine/core";
+import { Card, Table, Title, Loader, Center, Text } from "@mantine/core"
 
-import api from "../../api/api";
+import api from "../../api/api"
 
 function SummaryTable({ title, endpoint }) {
-
-    const [loading, setLoading] = useState(true);
-    const [rows, setRows] = useState([]);
-
+    const [loading, setLoading] = useState(true)
+    const [rows, setRows] = useState([])
 
     const loadData = async () => {
-
         try {
+            setLoading(true)
 
-            setLoading(true);
+            const response = await api.get(endpoint)
 
-            const response = await api.get(endpoint);
-
-            setRows(response.data.data);
-
+            setRows(response.data.data)
         } catch (error) {
-
-            console.error(error);
-
+            console.error(error)
         } finally {
-
-            setLoading(false);
-
+            setLoading(false)
         }
+    }
 
-    };
-
+    function addTabsBySlashCount(category) {
+        const count = (category.match(/\//g) || []).length // number of '/'
+        return "".repeat(count) + category
+    }
 
     useEffect(() => {
-        loadData();
-    }, []);
-
+        loadData()
+    }, [])
 
     if (loading) {
         return (
@@ -51,65 +38,40 @@ function SummaryTable({ title, endpoint }) {
                     <Loader />
                 </Center>
             </Card>
-        );
+        )
     }
 
-
     return (
-
         <Card withBorder shadow="sm">
-
             <Title order={4} mb="md">
                 {title}
             </Title>
 
             <Table striped highlightOnHover>
-
                 <Table.Thead>
-
                     <Table.Tr>
+                        <Table.Th>Category</Table.Th>
 
-                        <Table.Th>
-                            Category
-                        </Table.Th>
-
-                        <Table.Th ta="right">
-                            Total Amount
-                        </Table.Th>
-
+                        <Table.Th ta="right">Amount</Table.Th>
                     </Table.Tr>
-
                 </Table.Thead>
 
-
                 <Table.Tbody>
+                    {rows.map((row) => (
+                        <Table.Tr key={row.category}>
+                            <Table.Td>
+                                <Text size="sm" style={{paddingLeft: (row.category.match(/\//g) || []).length * 10 }}>{row.category || "Total"}</Text>
+                            </Table.Td>
 
-                    {
-                        rows.map((row) => (
-
-                            <Table.Tr key={row.category}>
-
-                                <Table.Td>
-                                    {row.category}
-                                </Table.Td>
-
-                                <Table.Td ta="right">
-                                    ₹ {Number(row.total_amount).toLocaleString("en-IN")}
-                                </Table.Td>
-
-                            </Table.Tr>
-
-                        ))
-                    }
-
+                            <Table.Td ta="right">
+                                ₹ {Number(row.total_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </Table.Td>
+                        </Table.Tr>
+                    ))}
                 </Table.Tbody>
-
             </Table>
-
         </Card>
-
-    );
-
+    )
 }
 
-export default SummaryTable;
+export default SummaryTable

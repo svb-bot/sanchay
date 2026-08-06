@@ -13,6 +13,7 @@ from datetime import datetime
 import dateparser
 from io import StringIO
 import os
+from config import DATE_FORMAT
 
 
 def get_flipkart_bills(service):
@@ -122,11 +123,13 @@ def get_cesc_bills(service):
 
             data.append(
                 {
-                    "reference_no": reference_no.group(1) if reference_no else "",
-                    "issuer": issuer.group(1) if issuer else "",
-                    "consumer_id": consumer_id.group(1) if consumer_id else "",
-                    "date": date.group(1) if date else "",
-                    "amount": amount.group(1) if amount else "",
+                    "Ref No": reference_no.group(1) if reference_no else "",
+                    "Issuer Name": issuer.group(1) if issuer else "",
+                    "Consumer ID": consumer_id.group(1) if consumer_id else "",
+                    "Date": dateparser.parse(date.group(1) if date else "2000-01-01").strftime(
+                        DATE_FORMAT
+                    ),
+                    "Withdrawal": amount.group(1) if amount else "",
                     "id": msg["id"],
                 }
             )

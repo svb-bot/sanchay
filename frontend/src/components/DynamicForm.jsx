@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Stack, Group, Button } from "@mantine/core"
 import { notifications } from "@mantine/notifications"
 
@@ -6,6 +6,10 @@ import FieldRenderer from "./FieldRenderer"
 
 function DynamicForm({ schema, initialValues = {}, onSubmit, submitLabel = "Save" }) {
     const [values, setValues] = useState(initialValues)
+
+    // useEffect(() => {
+    //     setValues(initialValues)
+    // }, [initialValues])
 
     const handleChange = (name, value) => {
         setValues((prev) => ({
@@ -48,14 +52,18 @@ function DynamicForm({ schema, initialValues = {}, onSubmit, submitLabel = "Save
             return
         }
 
+        const data = transformData()
+
         onSubmit({
-            data: transformData(),
+            data,
             onsuccess: (msg) => {
                 clearForm()
                 notifications.show({ title: "Success", message: msg })
+                setValues(initialValues)
             },
             onerror: (msg) => notifications.show({ color: "red", title: "Oops", message: msg })
         })
+        
     }
 
     return (

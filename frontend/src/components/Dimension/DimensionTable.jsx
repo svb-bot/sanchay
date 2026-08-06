@@ -1,13 +1,20 @@
 import { Table, ActionIcon, Group, Button, Card } from "@mantine/core"
 
-import { IconTrash, IconRefresh } from "@tabler/icons-react"
-
+import { IconTrash, IconRefresh, IconEdit } from "@tabler/icons-react"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 
+import EditDimensionModal from "./EditDimensionModal"
 import api from "../../api/api"
 
 const DimensionTable = forwardRef(({ schema }, ref) => {
     const [rows, setRows] = useState([])
+    const [opened, setOpened] = useState(false)
+    const [selectedRecord, setSelectedRecord] = useState(null)
+
+    const editRow = (record) => {
+        setSelectedRecord(record)
+        setOpened(true)
+    }
 
     const loadData = async () => {
         try {
@@ -54,14 +61,27 @@ const DimensionTable = forwardRef(({ schema }, ref) => {
                             <Table.Td>{row.name}</Table.Td>
 
                             <Table.Td>
-                                <ActionIcon color="red" onClick={() => deleteRow(row.id)}>
-                                    <IconTrash size={16} />
-                                </ActionIcon>
+                                <Group spacing="xs" mb="md">
+                                    <ActionIcon color="blue" variant="light" onClick={() => editRow(row)}>
+                                        <IconEdit size={16} />
+                                    </ActionIcon>
+                                    <ActionIcon color="red" onClick={() => deleteRow(row[schema.idField])}>
+                                        <IconTrash size={16} />
+                                    </ActionIcon>
+                                </Group>
                             </Table.Td>
                         </Table.Tr>
                     ))}
                 </Table.Tbody>
             </Table>
+
+            <EditDimensionModal
+                opened={opened}
+                onClose={() => setOpened(false)}
+                schema={schema}
+                record={selectedRecord}
+                onUpdated={loadData}
+            />
         </Card>
     )
 })

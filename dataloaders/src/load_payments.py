@@ -20,6 +20,7 @@ from config import (
     NEFT_MODE,
     SAVINGS_CATEGORY,
     FD_CATEGORY,
+    SALARY_CATEGORY
 )
 
 
@@ -59,9 +60,9 @@ def load_interest_payments(file_path, bank_name="HDFC"):
                     txn_cols.get("details_column_name", "Narration")
                 ].apply(
                     lambda x: (
-                        "Interest/Deposit/Term"
+                        FD_CATEGORY
                         if "quarterly" in str(x).lower()
-                        else "Interest/Savings"
+                        else SAVINGS_CATEGORY
                     )
                 )
                 df = df.merge(
@@ -92,6 +93,9 @@ def load_interest_payments(file_path, bank_name="HDFC"):
                         ): "payment_amt",
                     },
                     inplace=True,
+                )
+                df["payment_amt"] = (
+                    df["payment_amt"].str.replace("-", "0").astype(float)
                 )
                 df["payment_notes"] = df.apply(
                     lambda row: generate_notes(
@@ -157,7 +161,9 @@ def load_salary_payments(file_path):
 
                 # Fetch the payment_category_id for Salary from the database
                 payment_category_df = pd.read_sql_query(
-                    "select category_id payment_category_id, category_name payment_category from dim_payment_category where category_name = 'Salary'",
+                    "select category_id payment_category_id, category_name payment_category from dim_payment_category where category_name = '{SALARY_CATEGORY}'".format(
+                        SALARY_CATEGORY=SALARY_CATEGORY
+                    ),
                     con=conn,
                 )
 
@@ -166,7 +172,7 @@ def load_salary_payments(file_path):
                     .str.split()
                     .str[0]
                 )
-                df["payment_category"] = "Salary"
+                df["payment_category"] = SALARY_CATEGORY
                 df = df.merge(
                     payment_mode_df,
                     how="left",
@@ -196,6 +202,9 @@ def load_salary_payments(file_path):
                         ): "payment_amt",
                     },
                     inplace=True,
+                )
+                df["payment_amt"] = (
+                    df["payment_amt"].str.replace("-", "0").astype(float)
                 )
                 df["payment_notes"] = df.apply(
                     lambda row: generate_notes(
