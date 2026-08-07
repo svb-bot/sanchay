@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 
 import { Card, Table, Title, Loader, Center, Text } from "@mantine/core"
+import { BarsList } from "@mantine/charts"
+import { useMantineTheme } from "@mantine/core"
 
 import api from "../../api/api"
 
@@ -41,11 +43,23 @@ function SummaryTable({ title, endpoint }) {
         )
     }
 
+    const chartData = rows
+        .filter((row) => row.total_amount > 0 && row.category && !row.category.includes("/"))
+        .sort((a, b) => b.total_amount - a.total_amount)
+        .map((row, idx) => ({
+            name: row.category,
+            value: row.total_amount
+        }))
+
     return (
         <Card withBorder shadow="sm">
             <Title order={4} mb="md">
                 {title}
             </Title>
+
+            <Center>
+                <BarsList barColor="teal" data={chartData} />
+            </Center>
 
             <Table striped highlightOnHover>
                 <Table.Thead>
@@ -60,7 +74,9 @@ function SummaryTable({ title, endpoint }) {
                     {rows.map((row) => (
                         <Table.Tr key={row.category}>
                             <Table.Td>
-                                <Text size="sm" style={{paddingLeft: (row.category.match(/\//g) || []).length * 10 }}>{row.category || "Total"}</Text>
+                                <Text size="sm" style={{ paddingLeft: (row.category.match(/\//g) || []).length * 10 }}>
+                                    {row.category || "Total"}
+                                </Text>
                             </Table.Td>
 
                             <Table.Td ta="right">
